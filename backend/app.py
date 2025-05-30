@@ -2,10 +2,10 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 
-from backend.utils.symptoms import extract
-from backend.utils.classification import classifyCondition
-from backend.utils.recommender import bestPlant
-from backend.utils.recipe import getRecipe
+from utils.symptoms import extract
+from utils.classification import classifyCondition
+from utils.recommender import bestPlant
+from utils.recipe import getRecipe
 
 #Load environment variables if needed
 from dotenv import load_dotenv
