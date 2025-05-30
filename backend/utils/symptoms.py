@@ -64,4 +64,3 @@ Model ↴
   )
 
   return json.loads(response.text)
-    
