@@ -148,7 +148,7 @@ class RecipeJSON(BaseModel):
     instructions: str
 
 @app.post("/downloadRecipePDF")
-async def downloadRecipePDF(request: Request, payload: RecipeJSON):
+async def downloadRecipePDF(request: Request, payload: RecipeJSON, currentUser: User = Depends(getCurrentUser)):
     context = {
     "request": request,
     "recipe": {
