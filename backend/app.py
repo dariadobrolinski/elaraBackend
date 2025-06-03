@@ -30,9 +30,9 @@ app = FastAPI()
 @app.post("/getRecommendations", response_model=RecResp)
 async def getRecommendations(req: RecReq):
     rawSymptoms = extract(req.medicalConcern)
-    symptomsList = rawSymptoms["symptoms"]
+    symptoms_dict = rawSymptoms["symptoms"]
 
-    rawClasses = classifyCondition(symptomsList)
+    rawClasses = classifyCondition(symptoms_dict)
     classDict = rawClasses["outputs"]
 
     recs = bestPlant(classDict)
