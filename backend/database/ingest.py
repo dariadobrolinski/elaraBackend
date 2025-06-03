@@ -13,7 +13,7 @@ coll = os.environ.get("COLL_NAME","pfaf_plants")
 client = MongoClient(uri)
 plants = client[db][coll]
 
-csv_path = os.path.join(os.path.dirname(__file__), "..", "data\pfaf_plants_merged.csv")
+csv_path = os.path.join(os.path.dirname(__file__), "data\pfaf_plants_merged_2.csv")
 df = pd.read_csv(csv_path)
 
 docs = df.to_dict(orient="records")
