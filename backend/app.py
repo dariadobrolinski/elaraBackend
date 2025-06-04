@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from pymongo import MongoClient
 import os
+from datetime import datetime, timezone
 
 from utils.symptoms import extract
 from utils.classification import classifyCondition
@@ -22,6 +23,7 @@ load_dotenv('.env')
 port = 8000
 client = MongoClient(os.getenv("MONGODB_URI"), port)
 db = client["User"]
+savedRecipes = db["saved_recipes"]
 
 from auth.hashing import Hash
 from auth.oauth import getCurrentUser
@@ -145,6 +147,36 @@ class RecipeJSON(BaseModel):
     recipeName: str
     ingredients: List[str]
     instructions: str
+
+@app.post("/saveRecipe")
+async def saveRecipe(payload: RecipeJSON, currentUser: User = Depends(getCurrentUser)):
+    doc = {
+        "userId": currentUser.username,
+        "recipe": {
+            "recipeName": payload.recipeName,
+            "ingredients": payload.ingredients,
+            "instructions": payload.instructions
+        },
+        "savedAt": datetime.now(timezone.utc)
+    }
+
+    result = savedRecipes.insert_one(doc)
+    if not result.inserted_id:
+        raise HTTPException(status_code=500, detail="Failed to save recipe.")
+    return {"message": "Recipe saved successfully", "id": str(result.inserted_id)}
+
+@app.get("/getSavedRecipes")
+async def getSavedRecipes(currentUser: User = Depends(getCurrentUser)):
+    cursor = savedRecipes.find({"userId": currentUser.username}).sort("savedAt", -1)
+    saved_list = []
+    for doc in cursor:
+        saved_list.append({
+            "id": str(doc["_id"]),
+            "recipe": doc["recipe"],
+            "savedAt": doc["savedAt"].isoformat()
+        })
+
+    return {"savedRecipes": saved_list}
 
 @app.post("/downloadRecipePDF")
 async def downloadRecipePDF(request: Request, payload: RecipeJSON, currentUser: User = Depends(getCurrentUser)):
