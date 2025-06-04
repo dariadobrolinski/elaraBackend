@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -32,7 +31,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-
 app.mount("/static", StaticFiles(directory="static"), name="static_files")
 
 templates = Jinja2Templates(directory="templates")
@@ -46,6 +44,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
 class User(BaseModel):
     username: str
     password: str
@@ -168,4 +167,5 @@ async def downloadRecipePDF(request: Request, payload: RecipeJSON, currentUser: 
     headers = {
         "Content-Disposition": f'attachment; filename="{filename_safe}"'
     }
+    
     return StreamingResponse(pdf_io, media_type="application/pdf", headers=headers)
