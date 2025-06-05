@@ -175,7 +175,11 @@ async def saveRecipe(payload: RecipeJSON, currentUser: User = Depends(getCurrent
 
 @app.get("/getSavedRecipes")
 async def getSavedRecipes(currentUser: User = Depends(getCurrentUser)):
-    cursor = savedRecipes.find({"userId": currentUser.username}).sort("savedAt", -1)
+    cursor = savedRecipes.find({
+        "userId": currentUser.username,
+        "deletedAt": {"$exists": False}
+    }).sort("savedAt", -1)
+
     saved_list = []
     for doc in cursor:
         saved_list.append({
