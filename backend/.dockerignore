@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.egg-info/
+.env
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# Other
+*.DS_Store
+docker-compose.yml
+README.md
+
+myenv

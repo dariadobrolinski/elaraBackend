@@ -25,7 +25,7 @@ from auth.jwttoken import createAccessToken
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv('.env')
+load_dotenv()
 
 port = 8000
 client = MongoClient(os.getenv("MONGODB_URI"), port)
