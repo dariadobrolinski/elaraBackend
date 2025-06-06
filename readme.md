@@ -1,6 +1,6 @@
 # Elara AI
 ![Screenshot 2025-06-06 083902](https://github.com/user-attachments/assets/12a7db5b-dd98-452a-a409-d10528fc68bf)
-#### (this repo only contains the backend)
+#### This repo only contains the backend, find the front end in [@gaiborjosue repo](https://github.com/gaiborjosue/elaraFrontend)
 
 ## 📚 Table of Contents
 
@@ -26,7 +26,7 @@
 - a Gemini-generated recipe using that plant
 - an optional PDF download of the recipe
 
-All code lives in **backend/**. The React UI frontend is maintained in a [separate repository](https://github.com/gaiborjosue/elaraFrontend).
+All code lives in **backend/**.
 
 ✨ _This is my **first-ever** FastAPI project_ ✨, so every pattern and decision in here reflects a newcomer's learning journey.
 
