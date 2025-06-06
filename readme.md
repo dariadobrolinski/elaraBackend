@@ -1,7 +1,8 @@
 # Elara AI
 ![Screenshot 2025-06-06 083902](https://github.com/user-attachments/assets/12a7db5b-dd98-452a-a409-d10528fc68bf)
 #### This repo only contains the backend, find the front end here:
-[![Screenshot 2025-06-06 090046](https://github.com/user-attachments/assets/2a67ff1b-4910-4a1c-83c7-0ff6d240ba74)](https://github.com/gaiborjosue/elaraFrontend)
+[![Screenshot 2025-06-06 090439](https://github.com/user-attachments/assets/776ac3fd-4ea4-4699-99eb-35cc47c78017)](https://github.com/gaiborjosue/elaraFrontend)
+
 
 ## 📚 Table of Contents
 
