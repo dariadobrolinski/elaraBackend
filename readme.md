@@ -51,10 +51,9 @@ All code lives in **backend/**. The React UI frontend is maintained in a [separa
 ---
 
 ## 3. Architecture (Backend Only)
+![elaraBackendDiagram](https://github.com/user-attachments/assets/ba4451cf-fff8-4056-ab57-0ad19c4d1dab)
 
-```
-
-```
+---
 
 **What calls what?**
 - `/getRecommendations` → `extract()` → `classifyCondition()` → `bestPlant()` → MongoDB
