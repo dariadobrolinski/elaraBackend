@@ -1,4 +1,5 @@
 # Elara AI
+![Screenshot 2025-06-06 083902](https://github.com/user-attachments/assets/12a7db5b-dd98-452a-a409-d10528fc68bf)
 #### (this repo only contains the backend)
 
 ## 📚 Table of Contents
