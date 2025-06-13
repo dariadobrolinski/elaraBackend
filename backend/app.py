@@ -72,13 +72,13 @@ class TokenData(BaseModel):
 def readRoot(currentUser: User = Depends(getCurrentUser)):
     return {"data": "Welcome to Elara"}
 
-# @app.post("/register")
-# def createUser(request: User):
-#     hashedPassword = Hash.bcrypt(request.password)
-#     userObject = dict(request)
-#     userObject["password"] = hashedPassword
-#     userID = db["users"].insert_one(userObject)
-#     return {"res": "created"}
+@app.post("/register")
+def createUser(request: User):
+    hashedPassword = Hash.bcrypt(request.password)
+    userObject = dict(request)
+    userObject["password"] = hashedPassword
+    userID = db["users"].insert_one(userObject)
+    return {"res": "created"}
 
 @app.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
