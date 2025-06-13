@@ -1,5 +1,5 @@
 # Elara AI
-![Screenshot 2025-06-06 083902](https://github.com/user-attachments/assets/12a7db5b-dd98-452a-a409-d10528fc68bf)
+![elaraBanner](https://github.com/user-attachments/assets/93baf0e8-f855-4619-9c0b-2ddae439a061)
 #### This repo only contains the backend, find the front end here: 
 [![Screenshot 2025-06-06 090439](https://github.com/user-attachments/assets/776ac3fd-4ea4-4699-99eb-35cc47c78017)](https://github.com/gaiborjosue/elaraFrontend)
 
@@ -184,15 +184,7 @@ docker run --env-file backend/.env -p 8000:8080 elara-api
 ## 11. Deployment to Google Cloud Run
 
 ```bash
-docker build -t us-central1-docker.pkg.dev/<PROJECT>/elara/elara-api:latest backend
-docker push  us-central1-docker.pkg.dev/<PROJECT>/elara/elara-api:latest
-
-gcloud run deploy elara-api \
-  --image us-central1-docker.pkg.dev/<PROJECT>/elara/elara-api:latest \
-  --region us-central1 --platform managed \
-  --allow-unauthenticated=false \
-  --set-env-vars="MONGODB_URI=…","SECRET_KEY=…" \
-  --service-account=elara-gemini-sa@<PROJECT>.iam.gserviceaccount.com
+gcloud run deploy elarabackend --source . --region us-central1 --service-account ${SERVICE_ACCOUNT_EMAIL} --allow-unauthenticated --project ${GCP_PROJECT_ID} --set-secrets="MONGODB_URI=mongodb-uri:latest,DB_NAME=db-name:latest,COLL_NAME=coll-name:latest,SECRET_KEY=jwt-secret-key:latest,ALGORITHM=jwt-algorithm:latest,EXPIRE_MINUTES=jwt-expire-minutes:latest,PROJECT=project:latest"
 ```
 
 Cloud Run autoscales 0 → N (cold starts ≈1 s).
