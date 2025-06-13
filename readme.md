@@ -46,6 +46,7 @@ All code lives in **backend/**.
 | Hosting          | Google Cloud Run (Docker container)             |
 | LLM Services     | Vertex AI — Gemini Pro / Flash / Lite           |
 | Auth             | OAuth2 Password Flow · JWT · Bcrypt             |
+| Email Service    | SMTP (Gmail/SendGrid)                           |
 | PDF Rendering    | WeasyPrint + Jinja2 template                    |
 | Container Reg.   | Artifact Registry                               |
 | Secrets          | Google Secret Manager (+ .env for local dev)    |
@@ -63,6 +64,7 @@ All code lives in **backend/**.
 - `/getRecipe` → `getRecipe()` → Vertex AI
 - `/downloadRecipePDF` → WeasyPrint
 - Auth utilities touch the `users` collection.
+- Email verification uses SMTP for sending verification emails.
 
 ---
 
@@ -106,7 +108,9 @@ pip install -r requirements.txt
 cp .env.example .env
 #   └─ set: MONGODB_URI, DB_NAME, COLL_NAME,
 #          GOOGLE_PROJECT_ID, SERVICE_ACCOUNT_JSON,
-#          SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
+#          SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES,
+#          SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD,
+#          FRONTEND_URL
 
 # Seed the database (optional in dev)
 python database/ingest.py
@@ -129,6 +133,11 @@ Swagger UI lives at **http://localhost:8000/docs**.
 | `SERVICE_ACCOUNT_JSON`         | path/JSON creds for IAM           |
 | `SECRET_KEY`                   | JWT signing key                   |
 | `ACCESS_TOKEN_EXPIRE_MINUTES`  | token TTL                         |
+| `SMTP_SERVER`                  | SMTP server for email sending    |
+| `SMTP_PORT`                    | SMTP port (usually 587)          |
+| `SMTP_USERNAME`                | SMTP username/email               |
+| `SMTP_PASSWORD`                | SMTP password/app password        |
+| `FRONTEND_URL`                 | Frontend URL for verification links |
 | `PORT`                         | gunicorn/uvicorn port (Cloud Run) |
 
 ---
@@ -149,8 +158,10 @@ docker run --env-file backend/.env -p 8000:8080 elara-api
 - **plants**
   - `latin_name_search`, `common_name_search`, `medicinal_rating_search`
   - `edibility_rating_search`, `Edible Uses`, `Known Hazards`, `plant_url`
-- **users**
-  - `username`, `hashed_password`, `created_at`, …
+- **users** (verified users only)
+  - `email`, `username`, `hashed_password`, `email_verified`, `created_at`, `verified_at`
+- **pending_users** (TTL = 24 hours)
+  - `email`, `username`, `hashed_password`, `verification_token`, `verification_token_expires`, `created_at`
 - **saved_recipes** (TTL = 10 days)
   - `recipe`, `deletedAt`, `user_id`
 
@@ -160,8 +171,10 @@ docker run --env-file backend/.env -p 8000:8080 elara-api
 
 | Verb   | Endpoint                   | Auth | Purpose                                   |
 | ------ | -------------------------- | ---- | ----------------------------------------- |
-| POST   | `/register`                | –    | create user (bcrypt hash)                 |
-| POST   | `/login`                   | –    | issue JWT                                 |
+| POST   | `/register`                | –    | create user with email verification       |
+| POST   | `/verify-email`            | –    | verify email with token                   |
+| POST   | `/resend-verification`     | –    | resend verification email                 |
+| POST   | `/login`                   | –    | issue JWT (requires verified email)       |
 | GET    | `/me`                      | ✅   | return current user                       |
 | POST   | `/getRecommendations`      | ✅   | LLM adapters → best plant                 |
 | POST   | `/getRecipe`               | ✅   | generate recipe via Gemini                |
@@ -174,17 +187,18 @@ docker run --env-file backend/.env -p 8000:8080 elara-api
 
 ## 10. Authentication Flow
 
-1. `/register` → `hashing.py` bcrypt → insert in `users`.
-2. `/login` returns `access_token` via `jwttoken.py`.
-3. Protected routes use `oauth.py` (`OAuth2PasswordBearer`).
-4. Token verified → `jwttoken.verifyToken()`.
+1. `/register` → `hashing.py` bcrypt → insert in `pending_users` → send verification email.
+2. `/verify-email` → validate token → move user from `pending_users` to `users` → mark as verified.
+3. `/login` → check user exists in `users` collection → return `access_token` via `jwttoken.py`.
+4. Protected routes use `oauth.py` (`OAuth2PasswordBearer`).
+5. Token verified → `jwttoken.verifyToken()`.
 
 ---
 
 ## 11. Deployment to Google Cloud Run
 
 ```bash
-gcloud run deploy elarabackend --source . --region us-central1 --service-account ${SERVICE_ACCOUNT_EMAIL} --allow-unauthenticated --project ${GCP_PROJECT_ID} --set-secrets="MONGODB_URI=mongodb-uri:latest,DB_NAME=db-name:latest,COLL_NAME=coll-name:latest,SECRET_KEY=jwt-secret-key:latest,ALGORITHM=jwt-algorithm:latest,EXPIRE_MINUTES=jwt-expire-minutes:latest,PROJECT=project:latest"
+gcloud run deploy elarabackend --source . --region us-central1 --service-account ${SERVICE_ACCOUNT_EMAIL} --allow-unauthenticated --project ${GCP_PROJECT_ID} --set-secrets="MONGODB_URI=mongodb-uri:latest,DB_NAME=db-name:latest,COLL_NAME=coll-name:latest,SECRET_KEY=jwt-secret-key:latest,ALGORITHM=jwt-algorithm:latest,EXPIRE_MINUTES=jwt-expire-minutes:latest,PROJECT=project:latest,SMTP_SERVER=smtp-server:latest,SMTP_PORT=smtp-port:latest,SMTP_USERNAME=smtp-username:latest,SMTP_PASSWORD=smtp-password:latest,FRONTEND_URL=frontend-url:latest"
 ```
 
 Cloud Run autoscales 0 → N (cold starts ≈1 s).
