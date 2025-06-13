@@ -139,6 +139,12 @@ def send_verification_email(email: str, username: str, token: str):
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
         verification_link = f"{frontend_url}/verify-email?token={token}&email={email}"
         
+        print(f"\n=== SENDING VERIFICATION EMAIL ===")
+        print(f"To: {email}")
+        print(f"Username: {username}")
+        print(f"Frontend URL: {frontend_url}")
+        print(f"Token hash: {hash(token)}")  # Log hash instead of actual token
+        
         body = f"""
         <html>
         <body>
@@ -219,13 +225,15 @@ def createUser(request: User):
         # Insert into pending users collection
         pendingUserID = pendingUsers.insert_one(pendingUserObject)
         print(f"Pending user created with ID: {pendingUserID.inserted_id}")
+        print(f"Verification token (first 10 chars): {verification_token[:10]}...")
         
         # Send verification email
         email_sent = send_verification_email(request.email, request.username, verification_token)
         
         if not email_sent:
             # If email fails, remove the pending user
-            pendingUsers.delete_one({"_id": pendingUserID.inserted_id})
+            delete_result = pendingUsers.delete_one({"_id": pendingUserID.inserted_id})
+            print(f"Email failed for user {request.username}. Deletion result: {delete_result.deleted_count}")
             raise HTTPException(status_code=500, detail="Failed to send verification email. Please try again.")
         
         return {"message": "Registration successful! Please check your email and click the verification link to complete your account setup."}
@@ -238,7 +246,15 @@ def createUser(request: User):
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @app.post("/verify-email")
-def verifyEmail(request: EmailVerificationToken):
+def verifyEmail(request: EmailVerificationToken, req: Request):
+    # Log the verification attempt
+    print(f"\n=== VERIFY EMAIL ATTEMPT ===")
+    print(f"Token received: {request.token[:10]}..." if request.token else "No token")
+    print(f"Request headers: {dict(req.headers)}")
+    print(f"Client IP: {req.client.host if req.client else 'Unknown'}")
+    print(f"User-Agent: {req.headers.get('user-agent', 'Unknown')}")
+    print(f"Referer: {req.headers.get('referer', 'None')}")
+    
     # Look for user in pending users collection
     pending_user = pendingUsers.find_one({
         "verification_token": request.token,
@@ -249,9 +265,14 @@ def verifyEmail(request: EmailVerificationToken):
         # Check if token exists but is expired
         expired_user = pendingUsers.find_one({"verification_token": request.token})
         if expired_user:
+            print(f"Token expired for user: {expired_user.get('username')}")
             raise HTTPException(status_code=410, detail="Verification token has expired. Please register again.")
         else:
+            print(f"Invalid token attempted: {request.token[:10]}...")
             raise HTTPException(status_code=400, detail="Invalid verification token")
+    
+    print(f"Found pending user: {pending_user['username']} ({pending_user['email']})")
+    print(f"Token expires at: {pending_user['verification_token_expires']}")
     
     # Create verified user object for main users collection
     verified_user = {
@@ -270,7 +291,9 @@ def verifyEmail(request: EmailVerificationToken):
         # Remove from pending users collection
         pendingUsers.delete_one({"_id": pending_user["_id"]})
         print(f"User {pending_user['username']} successfully verified and moved to main collection")
+        print(f"=== VERIFY EMAIL SUCCESS ===\n")
     else:
+        print(f"Failed to create verified user for: {pending_user['username']}")
         raise HTTPException(status_code=500, detail="Failed to create verified user account")
     
     return {"message": "Email verified successfully! Your account is now active and you can log in."}
@@ -346,13 +369,25 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 detail="User not found"
             )
     
-    # User exists in main collection, they should be verified
+    # CRITICAL: User exists in main collection, they MUST be verified
+    # If email_verified field doesn't exist or is False, block login
     if not user.get("email_verified", False):
-        # This shouldn't happen with new flow, but keep as safety check
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account verification incomplete. Please contact support."
-        )
+        # Log this as it indicates a serious issue
+        print(f"WARNING: User {form_data.username} in main collection without email_verified=True")
+        print(f"User data: {user}")
+        
+        # Check if this user also exists in pending collection
+        pending_user = pendingUsers.find_one({"username": form_data.username})
+        if pending_user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Please verify your email address to complete registration before logging in"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account verification incomplete. Please contact support."
+            )
     
     if not Hash.verify(user["password"], form_data.password):
         raise HTTPException(
