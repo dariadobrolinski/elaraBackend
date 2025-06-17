@@ -81,6 +81,7 @@ class TokenData(BaseModel):
 
 class RecReq(BaseModel):
     medicalConcern: str
+    edible: bool = False
 
 class PlantInfo(BaseModel):
     plantName: Optional[str]
@@ -372,13 +373,13 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.post("/getRecommendations", response_model=RecResp)
 async def getRecommendations(req: RecReq, currentUser: User = Depends(getCurrentUser)):
-    rawSymptoms = extract(req.medicalConcern)
+    rawSymptoms   = extract(req.medicalConcern)
     symptoms_dict = rawSymptoms["symptoms"]
 
     rawClasses = classifyCondition(symptoms_dict)
-    classDict = rawClasses["outputs"]
-
-    recs = bestPlant(classDict)
+    classDict  = rawClasses["outputs"]
+    
+    recs = bestPlant(classDict, edible=req.edible)
 
     return {"output": recs}
 
