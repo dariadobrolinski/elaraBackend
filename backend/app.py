@@ -35,14 +35,13 @@ port = 8000
 client = MongoClient(os.getenv("MONGODB_URI"), port)
 db = client["User"]
 savedRecipes = db["saved_recipes"]
-pendingUsers = db["pending_users"]  # New collection for unverified users
+pendingUsers = db["pending_users"] 
 
 savedRecipes.create_index(
     [("deletedAt", 1)],
     expireAfterSeconds=864000
 )
 
-# Create TTL index for pending users - expire after 24 hours
 pendingUsers.create_index(
     [("verification_token_expires", 1)],
     expireAfterSeconds=0
@@ -93,7 +92,7 @@ class PlantInfo(BaseModel):
     plantURL: Optional[str]
 
 class RecResp(BaseModel):
-    output: Dict[str, Optional[PlantInfo]]
+    output: Dict[str, List[PlantInfo]]
 
 class RecipeReq(BaseModel):
     plantName: str
@@ -119,7 +118,6 @@ def readRoot(currentUser: User = Depends(getCurrentUser)):
     return {"data": "Welcome to Elara"}
 
 def send_verification_email(email: str, username: str, token: str):
-    """Send verification email to user"""
     try:
         smtp_server = os.getenv("SMTP_SERVER", "mail.privateemail.com")
         smtp_port = int(os.getenv("SMTP_PORT", "465"))
@@ -129,7 +127,7 @@ def send_verification_email(email: str, username: str, token: str):
         
         if not smtp_username or not smtp_password:
             print("Warning: Email service not configured properly")
-            return False  # Don't raise exception, just return False
+            return False
         
         msg = MIMEMultipart()
         msg['From'] = smtp_username
@@ -143,7 +141,7 @@ def send_verification_email(email: str, username: str, token: str):
         print(f"To: {email}")
         print(f"Username: {username}")
         print(f"Frontend URL: {frontend_url}")
-        print(f"Token hash: {hash(token)}")  # Log hash instead of actual token
+        print(f"Token hash: {hash(token)}")
         
         body = f"""
         <html>
@@ -179,7 +177,6 @@ def createUser(request: User):
     try:
         print(f"Registration attempt for email: {request.email}, username: {request.username}")
         
-        # Check if user already exists in main users collection
         existing_user = db["users"].find_one({"$or": [{"username": request.username}, {"email": request.email}]})
         if existing_user:
             if existing_user.get("email") == request.email:
@@ -187,7 +184,6 @@ def createUser(request: User):
             else:
                 raise HTTPException(status_code=400, detail="Username already taken")
         
-        # Check if user already exists in pending users collection
         existing_pending = pendingUsers.find_one({"$or": [{"username": request.username}, {"email": request.email}]})
         if existing_pending:
             if existing_pending.get("email") == request.email:
@@ -195,24 +191,20 @@ def createUser(request: User):
             else:
                 raise HTTPException(status_code=400, detail="Username already taken")
         
-        # Validate email format
         import re
         email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
         if not re.match(email_pattern, request.email):
             raise HTTPException(status_code=400, detail="Invalid email format")
         
-        # Validate password length
         if len(request.password) < 6:
             raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
         
-        # Validate username
         if len(request.username) < 3:
             raise HTTPException(status_code=400, detail="Username must be at least 3 characters long")
         
         hashedPassword = Hash.bcrypt(request.password)
         verification_token = secrets.token_urlsafe(32)
         
-        # Store in pending users collection instead of main users collection
         pendingUserObject = {
             "email": request.email,
             "username": request.username,
@@ -222,16 +214,13 @@ def createUser(request: User):
             "created_at": datetime.now(timezone.utc)
         }
         
-        # Insert into pending users collection
         pendingUserID = pendingUsers.insert_one(pendingUserObject)
         print(f"Pending user created with ID: {pendingUserID.inserted_id}")
         print(f"Verification token (first 10 chars): {verification_token[:10]}...")
-        
-        # Send verification email
+
         email_sent = send_verification_email(request.email, request.username, verification_token)
         
         if not email_sent:
-            # If email fails, remove the pending user
             delete_result = pendingUsers.delete_one({"_id": pendingUserID.inserted_id})
             print(f"Email failed for user {request.username}. Deletion result: {delete_result.deleted_count}")
             raise HTTPException(status_code=500, detail="Failed to send verification email. Please try again.")
@@ -239,7 +228,6 @@ def createUser(request: User):
         return {"message": "Registration successful! Please check your email and click the verification link to complete your account setup."}
         
     except HTTPException:
-        # Re-raise HTTP exceptions
         raise
     except Exception as e:
         print(f"Registration error: {e}")
@@ -247,7 +235,6 @@ def createUser(request: User):
 
 @app.post("/verify-email")
 def verifyEmail(request: EmailVerificationToken, req: Request):
-    # Log the verification attempt
     print(f"\n=== VERIFY EMAIL ATTEMPT ===")
     print(f"Token received: {request.token[:10]}..." if request.token else "No token")
     print(f"Request headers: {dict(req.headers)}")
@@ -255,14 +242,12 @@ def verifyEmail(request: EmailVerificationToken, req: Request):
     print(f"User-Agent: {req.headers.get('user-agent', 'Unknown')}")
     print(f"Referer: {req.headers.get('referer', 'None')}")
     
-    # Look for user in pending users collection
     pending_user = pendingUsers.find_one({
         "verification_token": request.token,
         "verification_token_expires": {"$gt": datetime.now(timezone.utc)}
     })
     
     if not pending_user:
-        # Check if token exists but is expired
         expired_user = pendingUsers.find_one({"verification_token": request.token})
         if expired_user:
             print(f"Token expired for user: {expired_user.get('username')}")
@@ -274,7 +259,6 @@ def verifyEmail(request: EmailVerificationToken, req: Request):
     print(f"Found pending user: {pending_user['username']} ({pending_user['email']})")
     print(f"Token expires at: {pending_user['verification_token_expires']}")
     
-    # Create verified user object for main users collection
     verified_user = {
         "email": pending_user["email"],
         "username": pending_user["username"],
@@ -284,11 +268,9 @@ def verifyEmail(request: EmailVerificationToken, req: Request):
         "verified_at": datetime.now(timezone.utc)
     }
     
-    # Insert into main users collection
     user_result = db["users"].insert_one(verified_user)
     
     if user_result.inserted_id:
-        # Remove from pending users collection
         pendingUsers.delete_one({"_id": pending_user["_id"]})
         print(f"User {pending_user['username']} successfully verified and moved to main collection")
         print(f"=== VERIFY EMAIL SUCCESS ===\n")
@@ -304,10 +286,8 @@ def getEmailForUsername(request: Dict[str, str]):
     if not username:
         raise HTTPException(status_code=400, detail="Username is required")
     
-    # Check pending users first
     pending_user = pendingUsers.find_one({"username": username})
     if pending_user:
-        # Mask email for privacy
         email = pending_user["email"]
         parts = email.split("@")
         if len(parts[0]) > 2:
@@ -320,7 +300,6 @@ def getEmailForUsername(request: Dict[str, str]):
 
 @app.post("/resend-verification")
 def resendVerification(request: EmailVerificationRequest):
-    # Check both pending and main users collections
     pending_user = pendingUsers.find_one({"email": request.email})
     main_user = db["users"].find_one({"email": request.email})
     
@@ -330,7 +309,6 @@ def resendVerification(request: EmailVerificationRequest):
     if not pending_user:
         raise HTTPException(status_code=404, detail="No pending registration found for this email. Please register again.")
     
-    # Generate new verification token
     verification_token = secrets.token_urlsafe(32)
     
     pendingUsers.update_one(
@@ -343,7 +321,6 @@ def resendVerification(request: EmailVerificationRequest):
         }
     )
     
-    # Send verification email
     email_sent = send_verification_email(request.email, pending_user["username"], verification_token)
     
     if not email_sent:
@@ -356,7 +333,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = db["users"].find_one({"username": form_data.username})
 
     if not user:
-        # Check if user exists in pending collection
         pending_user = pendingUsers.find_one({"username": form_data.username})
         if pending_user:
             raise HTTPException(
@@ -369,14 +345,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
                 detail="User not found"
             )
     
-    # CRITICAL: User exists in main collection, they MUST be verified
-    # If email_verified field doesn't exist or is False, block login
     if not user.get("email_verified", False):
-        # Log this as it indicates a serious issue
         print(f"WARNING: User {form_data.username} in main collection without email_verified=True")
         print(f"User data: {user}")
         
-        # Check if this user also exists in pending collection
         pending_user = pendingUsers.find_one({"username": form_data.username})
         if pending_user:
             raise HTTPException(
