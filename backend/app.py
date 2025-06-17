@@ -354,7 +354,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
         if pending_user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Please verify your email address to complete registration before logging in"
+                detail="Please verify your email address to complete registration before logging in."
             )
         else:
             raise HTTPException(
@@ -365,7 +365,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if not Hash.verify(user["password"], form_data.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
+            detail="Incorrect username or password :("
         )
     
     accessToken = createAccessToken(data={"sub": user["username"]})
@@ -378,7 +378,7 @@ async def getRecommendations(req: RecReq, currentUser: User = Depends(getCurrent
 
     rawClasses = classifyCondition(symptoms_dict)
     classDict  = rawClasses["outputs"]
-    
+
     recs = bestPlant(classDict, edible=req.edible)
 
     return {"output": recs}
