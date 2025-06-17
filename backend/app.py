@@ -28,7 +28,8 @@ from auth.oauth import getCurrentUser
 from auth.jwttoken import createAccessToken
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-
+import requests
+from bs4 import BeautifulSoup
 load_dotenv()
 
 port = 8000
@@ -280,6 +281,34 @@ def verifyEmail(request: EmailVerificationToken, req: Request):
         raise HTTPException(status_code=500, detail="Failed to create verified user account")
     
     return {"message": "Email verified successfully! Your account is now active and you can log in."}
+
+@app.get("/plant/medicalUses/{latin_name}")
+def getMedicinalUses(latin_name: str, currentUser: User = Depends(getCurrentUser)):
+    # Construct URL, replacing spaces with '+'
+    base = "https://pfaf.org/user/Plant.aspx?LatinName="
+    url = base + latin_name.replace(" ", "+")
+    
+    # Fetch page
+    resp = requests.get(url, headers={"User-Agent": "python-requests"})
+    resp.raise_for_status()
+    
+    # Parse HTML
+    soup = BeautifulSoup(resp.text, "html.parser")
+    
+    # Primary selector: the span that holds the medicinal uses
+    span = soup.find("span", id="ContentPlaceHolder1_txtMediUses")
+    if span:
+        # Return plain text
+        return span.get_text(separator=" ", strip=True)
+    
+    # Fallback: find the <h2> titled "Medicinal Uses" and grab the next <div>
+    h2 = soup.find("h2", string=lambda t: t and "Medicinal Uses" in t)
+    if h2:
+        div = h2.find_next_sibling("div")
+        if div:
+            return div.get_text(separator=" ", strip=True)
+    
+    return "Medicinal Uses section not found."
 
 @app.post("/get-email-for-username")
 def getEmailForUsername(request: Dict[str, str]):
