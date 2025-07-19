@@ -1,5 +1,5 @@
 # Elara AI
-![elaraBanner](https://github.com/user-attachments/assets/93baf0e8-f855-4619-9c0b-2ddae439a061)
+<img width="1500" height="500" alt="Elara AI Repo Banner" src="https://github.com/user-attachments/assets/9acc35fb-dcc7-403b-9404-7b2d0c03d07c" />
 
 🏆 **3rd Place Winner - MongoDB Track - ![AI in Action 2025 Hackathon](https://devpost.com/software/elara-x47age)** 🏆
 
