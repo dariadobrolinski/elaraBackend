@@ -1,7 +1,7 @@
 # Elara AI
 ![elaraBanner](https://github.com/user-attachments/assets/93baf0e8-f855-4619-9c0b-2ddae439a061)
 
-🏆 **![3rd Place Winner - MongoDB Track - AI in Action 2025 Hackathon](https://devpost.com/software/elara-x47age)** 🏆
+🏆 **3rd Place Winner - MongoDB Track - ![AI in Action 2025 Hackathon](https://devpost.com/software/elara-x47age)** 🏆
 
 #### This repo only contains the backend, find the front end here: 
 [![Screenshot 2025-06-06 090439](https://github.com/user-attachments/assets/776ac3fd-4ea4-4699-99eb-35cc47c78017)](https://github.com/gaiborjosue/elaraFrontend)
